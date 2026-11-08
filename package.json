@@ -1,0 +1,9 @@
+{
+  "name": "tv-launcher",
+  "version": "1.0.0",
+  "description": "Dark, Apple TV-style home screen for Samsung TVs",
+  "packageType": "app",
+  "appName": "Home",
+  "appPath": "app/index.html",
+  "keys": []
+}
