@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#07080c;color:#f2f3f7;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+#glow{position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 50% 120%,#1b2440 0%,#0b0e18 45%,#07080c 75%);transition:background .6s}
+#top{position:absolute;top:6vh;left:6vw;right:6vw}
+#time{font-size:7vh;font-weight:300;letter-spacing:.02em}
+#date{font-size:2.6vh;color:#8d93a8;margin-top:1vh}
+#row{position:absolute;left:6vw;right:6vw;top:34vh;display:flex;flex-direction:row;align-items:flex-start}
+.tile{width:22vw;margin-right:3vw;text-align:center;opacity:.72;transition:transform .25s,opacity .25s;-webkit-transition:-webkit-transform .25s,opacity .25s}
+.card{height:30vh;border-radius:2.2vh;display:flex;align-items:center;justify-content:center;font-size:5.4vh;font-weight:700;color:#fff;box-shadow:0 1vh 3vh rgba(0,0,0,.5)}
+.label{margin-top:2vh;font-size:2.8vh;color:#c8ccda;opacity:0;transition:opacity .25s}
+.tile.on{opacity:1;transform:scale(1.14);-webkit-transform:scale(1.14)}
+.tile.on .card{box-shadow:0 2.4vh 6vh rgba(0,0,0,.7),0 0 0 .5vh rgba(255,255,255,.85)}
+.tile.on .label{opacity:1}
+#msg{position:absolute;left:6vw;right:6vw;bottom:7vh;font-size:2.7vh;color:#ffb86b;min-height:4vh}
+#help{position:absolute;left:6vw;bottom:3vh;font-size:2vh;color:#59607a}
+</style>
+</head>
+<body>
+<div id="glow"></div>
+<div id="top"><div id="time"></div><div id="date"></div></div>
+<div id="row"></div>
+<div id="msg"></div>
+<div id="help">Left / Right to move, OK to open</div>
+<script>
+var APPS = [
+  {name:"YouTube", match:["youtube"], ids:["111299001912"], bg:"linear-gradient(135deg,#ff3b30,#a3150e)", glow:"#3a1210"},
+  {name:"Netflix", match:["netflix"], ids:["3201907018807","11101200001"], bg:"linear-gradient(135deg,#e50914,#4d0207)", glow:"#33080b"},
+  {name:"TV Box", match:[], ids:["org.tizen.tv-viewer"], bg:"linear-gradient(135deg,#3a7bff,#16307a)", glow:"#101e44",
+   hint:"If the TV box does not open, press SOURCE on the remote and choose the HDMI input your box is plugged into."}
+];
+var sel = 0, tiles = [];
+var row = document.getElementById("row"), msgEl = document.getElementById("msg");
+
+function say(t){ msgEl.textContent = t || ""; }
+
+function build(){
+  for (var i = 0; i < APPS.length; i++){
+    var t = document.createElement("div"); t.className = "tile";
+    t.innerHTML = '<div class="card"></div><div class="label"></div>';
+    t.firstChild.style.background = APPS[i].bg;
+    t.firstChild.textContent = APPS[i].name;
+    t.lastChild.textContent = APPS[i].name;
+    (function(n){ t.onclick = function(){ sel = n; focusTile(); openApp(); }; })(i);
+    row.appendChild(t); tiles.push(t);
+  }
+  focusTile();
+}
+
+function focusTile(){
+  for (var i = 0; i < tiles.length; i++) tiles[i].className = "tile" + (i === sel ? " on" : "");
+  document.getElementById("glow").style.background =
+    "radial-gradient(ellipse at 50% 120%," + APPS[sel].glow + " 0%,#0b0e18 45%,#07080c 75%)";
+  say("");
+}
+
+function tryIds(ids, k, app){
+  if (k >= ids.length){ say(app.hint || "Could not open " + app.name + ". Open it from the Samsung home screen instead."); return; }
+  try {
+    tizen.application.launch(ids[k], function(){}, function(){ tryIds(ids, k + 1, app); });
+  } catch (e){ tryIds(ids, k + 1, app); }
+}
+
+function openApp(){
+  var app = APPS[sel];
+  if (!window.tizen || !tizen.application){
+    say("This page cannot open apps here. Use the Samsung home screen for " + app.name + ".");
+    return;
+  }
+  say("Opening " + app.name + "...");
+  var found = [];
+  var done = function(){ tryIds(found.concat(app.ids), 0, app); };
+  try {
+    tizen.application.getAppsInfo(function(list){
+      for (var i = 0; i < list.length; i++){
+        var nm = (list[i].name || "").toLowerCase();
+        for (var m = 0; m < app.match.length; m++){
+          if (nm.indexOf(app.match[m]) > -1) found.push(list[i].id);
+        }
+      }
+      done();
+    }, done);
+  } catch (e){ done(); }
+}
+
+document.addEventListener("keydown", function(e){
+  var k = e.keyCode;
+  if (k === 39 && sel < tiles.length - 1){ sel++; focusTile(); }
+  else if (k === 37 && sel > 0){ sel--; focusTile(); }
+  else if (k === 13){ openApp(); }
+});
+
+function pad(n){ return n < 10 ? "0" + n : "" + n; }
+function tick(){
+  var d = new Date();
+  document.getElementById("time").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var mons = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("date").textContent = days[d.getDay()] + ", " + d.getDate() + " " + mons[d.getMonth()];
+}
+build(); tick(); setInterval(tick, 20000);
+</script>
+</body>
+</html>
